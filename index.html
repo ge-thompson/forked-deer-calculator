@@ -467,7 +467,7 @@ function setSyncStatus(status, text) {
 async function loadFromServer() {
   setSyncStatus('syncing', 'Loading prices...');
   try {
-    var res = await fetch('/.netlify/functions/getprices');
+    var res = await fetch('https://fdbsgetprices.get-enterprise.workers.dev');
     if (!res.ok) throw new Error('Server error');
     var data = await res.json();
     if (data.prices) state.prices = data.prices;
@@ -496,7 +496,7 @@ function scheduleSave() {
 
 async function saveToServer() {
   try {
-    var res = await fetch('/.netlify/functions/saveprices', {
+    var res = await fetch('https://fdbs-saveprices.get-enterprise.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state)
@@ -769,7 +769,7 @@ async function submitAuth() {
   if (!pwd) { errEl.textContent = 'Please enter a password'; return; }
   errEl.textContent = 'Checking...';
   try {
-    var res = await fetch('/.netlify/functions/checkauth', {
+    var res = await fetch('https://fdbs-checkauth.get-enterprise.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password: pwd })
