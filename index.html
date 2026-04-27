@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Forked Deer Bee Supply — Order Calculator 2026</title>
+<style>
+  :root {
+    --honey: #E8A020;
+    --honey-light: #F5C842;
+    --honey-dark: #B8760A;
+    --comb: #FFF8E7;
+    --dark: #1A1208;
+    --brown: #3D2400;
+    --mid: #6B4C1E;
+    --text: #2C1A00;
+    --muted: #8B6A3A;
+    --border: #D4A843;
+    --white: #FFFDF5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; background: var(--comb); color: var(--text); min-height: 100vh; }
+
+  header { background: var(--dark); color: var(--honey-light); padding: 14px 16px 12px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 3px 20px rgba(0,0,0,0.45); }
+  header .bee { font-size: 20px; line-height: 1; }
+  header h1 { font-size: 19px; font-weight: 800; letter-spacing: 0.3px; margin-top: 2px; color: var(--honey-light); }
+  header p { font-size: 10px; color: var(--honey); letter-spacing: 2.5px; text-transform: uppercase; margin-top: 2px; }
+
+  .total-bar { background: var(--honey); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 70px; z-index: 99; box-shadow: 0 2px 10px rgba(0,0,0,0.18); }
+  .total-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--brown); }
+  .total-amount { font-size: 26px; font-weight: 800; color: var(--dark); line-height: 1; }
+  .bar-right { display: flex; gap: 7px; align-items: center; }
+  .summary-btn, .reset-btn { background: var(--dark); color: var(--honey); border: none; padding: 6px 11px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; }
+  .summary-btn:active, .reset-btn:active { opacity: 0.75; }
+
+  .summary-panel { background: var(--dark); margin: 10px 10px 0; border-radius: 10px; padding: 14px 16px; display: none; }
+  .summary-panel.open { display: block; }
+  .summary-panel h3 { font-size: 13px; color: var(--honey); border-bottom: 1px solid var(--mid); padding-bottom: 8px; margin-bottom: 8px; font-weight: 700; }
+  .summary-line { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); padding: 3px 0; gap: 8px; }
+  .summary-line span:last-child { flex-shrink: 0; font-weight: 600; }
+  .summary-total { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; color: var(--honey-light); border-top: 1px solid var(--mid); padding-top: 8px; margin-top: 6px; }
+
+  .search-wrap { padding: 10px; background: var(--white); border-bottom: 1px solid var(--border); position: sticky; top: 118px; z-index: 98; }
+  .search-wrap input { width: 100%; padding: 9px 13px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 15px; background: var(--comb); color: var(--text); outline: none; font-family: inherit; }
+  .search-wrap input:focus { border-color: var(--honey-dark); }
+  .search-wrap input::placeholder { color: var(--muted); }
+
+  #catalog { padding-bottom: 32px; }
+  .section-wrap { margin: 12px 10px 0; }
+  .section-head { background: var(--brown); color: var(--white); padding: 8px 13px; border-radius: 8px 8px 0 0; font-size: 14px; font-weight: 700; }
+  .items-list { background: var(--white); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; overflow: hidden; }
+  .sub-head { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; padding: 8px 13px 3px; border-bottom: 1px solid rgba(212,168,67,0.2); background: rgba(255,248,231,0.6); }
+
+  .item-row { display: flex; align-items: center; padding: 9px 12px; border-bottom: 1px solid rgba(212,168,67,0.15); gap: 9px; }
+  .item-row:last-child { border-bottom: none; }
+  .item-row.has-qty { background: rgba(232,160,32,0.08); }
+  .item-row.hidden { display: none; }
+
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-size: 13px; color: var(--text); line-height: 1.3; }
+  .item-price { font-size: 11px; color: var(--honey-dark); font-weight: 600; margin-top: 1px; }
+
+  .qty-ctrl { display: flex; align-items: center; background: var(--comb); border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+  .qty-btn { width: 36px; height: 36px; border: none; background: transparent; color: var(--brown); font-size: 22px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; }
+  .qty-btn:active { background: rgba(232,160,32,0.3); }
+  .qty-num { width: 32px; height: 36px; text-align: center; font-size: 14px; font-weight: 600; color: var(--text); border: none; border-left: 1px solid var(--border); border-right: 1px solid var(--border); background: transparent; padding: 0; -moz-appearance: textfield; font-family: inherit; }
+  .qty-num::-webkit-outer-spin-button, .qty-num::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  .no-results { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; font-style: italic; display: none; }
+  .footer { text-align: center; padding: 10px 12px 28px; font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bee">&#x1F41D;</div>
+  <h1>Forked Deer Bee Supply</h1>
+  <p>2026 Order Calculator</p>
+</header>
+
+<div class="total-bar">
+  <div>
+    <div class="total-label">Order Total</div>
+    <div class="total-amount" id="grand-total">$0.00</div>
+  </div>
+  <div class="bar-right">
+    <button class="summary-btn" id="summary-btn" style="display:none" onclick="toggleSummary()">0 items</button>
+    <button class="reset-btn" onclick="resetAll()">Reset</button>
+  </div>
+</div>
+
+<div class="summary-panel" id="summary-panel">
+  <h3>&#x1F9FE; Order Summary</h3>
+  <div id="summary-lines"></div>
+  <div class="summary-total"><span>TOTAL</span><span id="summary-total-amt">$0.00</span></div>
+</div>
+
+<div class="search-wrap">
+  <input type="search" id="search" placeholder="Search items..." oninput="filterItems(this.value)">
+</div>
+
+<div id="catalog"></div>
+<div class="no-results" id="no-results">No items match your search.</div>
+<div class="footer">Forked Deer Bee Supply &middot; 2026 Pricelist &middot; All prices +30% from Midway 2025</div>
+
+<script>
+var CATALOG = [
+  { section: "Honey Harvesting Tools", sub: null, items: [
+    ["Hony-B-Gone 8oz", 21.45], ["Honey-B-Gone 16oz", 28.60], ["Honey-B-Gone 1 Gal.", 136.50],
+    ["Uncapping Roller", 13.00], ["Uncapping Scratcher", 5.20], ["Cold Uncapping Knife", 13.00],
+    ["Electric Uncapping Knife", 65.00], ["Honey Bucket with Gate", 17.55], ["Honey Gate", 7.80],
+    ["Bucket Perch", 11.05], ["SS Double Sieve Honey Filter", 26.00], ["Fume Board", 15.60], ["Refractometer", 58.50]
+  ]},
+  { section: "Honey Harvesting Tools", sub: "Extractors", items: [
+    ["2-Frame S-Steel Manual", 118.30], ["2-Frame S-Steel", 240.50], ["4-Frame S-Steel Manual", 357.50],
+    ["4-Frame Electric", 559.00], ["8-Frame S-Steel Manual Radial", 487.50], ["8-Frame Electric Radial", 1137.50]
+  ]},
+  { section: "Bee Health / Feed", sub: null, items: [
+    ["Pro Health Pint", 26.00], ["Pro Health Gallon", 117.00], ["Pro-Sweet Liquid Feed - per lb", 0.85],
+    ["Pro Winter Patties 10 lb", 32.50], ["Pro Winter Patties 40 lb", 110.50], ["Ultra Bee Patties - 10 lb", 41.60],
+    ["Ultra Bee Pollen Substitute 10 lbs", 48.75], ["Ultra Bee Pollen Substitute 40 lbs", 117.00],
+    ["Para-Moth Wax Moth Control 16oz", 31.20], ["Para-Moth Wax Moth Control 5 lb", 79.30],
+    ["Garstar Small Hive Beetle", 37.05], ["Varroa Easy Check", 24.05], ["Oxalic Acid 16oz", 15.60],
+    ["Lemon Grass Oil 1oz", 6.50], ["Swarm Commander Gel 2oz", 26.65], ["Swarm Commander Spray 2oz", 35.10]
+  ]},
+  { section: "Bee Health / Feed", sub: "Feeders", items: [
+    ["8 or 10 Frame Candy Board", 15.60], ["5 Frame Candy Board", 13.00],
+    ["8 or 10 Frame Top Feeder (Plastic Liner)", 32.50], ["5 Frame Top Feeder (Holds 3 Jars)", 19.50],
+    ["British Hive Top Feeder", 15.60], ["Punched Feeder Caps", 0.65],
+    ["Entrance Feeders", 4.55], ["Frame Feeder (Deep or Medium 1 Gal)", 10.40]
+  ]},
+  { section: "Hive Parts - 10 Frame", sub: "Unassembled / Assembled", items: [
+    ["Deep Super - Unassembled", 17.55], ["Deep Super - Assembled", 20.80],
+    ["Medium Super - Unassembled", 14.30], ["Medium Super - Assembled", 17.55],
+    ["Shallow Super - Unassembled", 13.65], ["Shallow Super - Assembled", 16.90],
+    ["Vented Super 3in - Unassembled", 8.45], ["Vented Super 3in - Assembled", 10.40],
+    ["Telescoping Top", 21.45], ["Migratory Top (No Metal)", 15.60],
+    ["Screen Inner Cover", 9.75], ["Inner Cover", 9.75],
+    ["Bottom Board (Screened or Solid)", 13.65], ["Stand (No Legs)", 13.00],
+    ["Stand (10in Legs)", 23.40], ["Robbing Screen", 15.60]
+  ]},
+  { section: "Hive Parts - 8 Frame", sub: "Unassembled / Assembled", items: [
+    ["Deep Super - Unassembled", 16.90], ["Deep Super - Assembled", 20.15],
+    ["Medium Super - Unassembled", 13.65], ["Medium Super - Assembled", 16.90],
+    ["Vented Super 3in - Unassembled", 8.45], ["Vented Super 3in - Assembled", 10.40],
+    ["Telescoping Top", 21.45], ["Migratory Top (No Metal)", 15.60],
+    ["Inner Cover", 9.75], ["Screen Inner Cover", 9.75],
+    ["Bottom Board (Screened or Solid)", 13.65], ["Stand (No Legs)", 13.00],
+    ["Stand (10in Legs)", 23.40], ["Robbing Screen", 15.60]
+  ]},
+  { section: "Hive Parts - 5 Frame Nuc", sub: "Unassembled / Assembled", items: [
+    ["Deep Nuc - Unassembled", 14.30], ["Deep Nuc - Assembled", 17.55],
+    ["Medium Nuc - Unassembled", 11.05], ["Medium Nuc - Assembled", 14.30],
+    ["Vented Super 3in", 9.10], ["Telescoping Top", 17.55], ["Migratory Top (No Metal)", 14.04],
+    ["Inner Cover", 7.80], ["Screen Inner Cover", 7.80],
+    ["Bottom Board (Screened or Solid)", 11.70], ["Robbing Screen", 13.00]
+  ]},
+  { section: "Frames and Foundations", sub: "Assembled Frames with Foundation", items: [
+    ["Wedge Top Bar Unassembled $1.50 / Assembled", 1.95], ["Grooved Top Bar Unassembled $1.50 / Assembled", 1.95],
+    ["Deep with Wax Foundation", 4.29], ["Medium with Wax Foundation", 3.64],
+    ["Shallow with Wax Foundation", 3.51], ["Deep with Plastic Wax Coated", 3.77],
+    ["Medium with Plastic Wax Coated", 3.58], ["Deep One Piece Plastic Heavy Waxed", 2.99],
+    ["Medium One Piece Plastic Heavy Waxed", 2.28], ["Deep Green Drone Frame", 4.23]
+  ]},
+  { section: "Frames and Foundations", sub: "Foundations", items: [
+    ["25 lb. Boxes Wax Foundation All Sizes", 331.50], ["Deep Wax Foundation", 2.08],
+    ["Medium Wax Foundation", 1.43], ["Shallow Wax Foundation", 1.30],
+    ["Deep Plastic Wax Coated", 1.56], ["Medium Plastic Wax Coated", 1.82],
+    ["Entrance Reducer", 1.30], ["Entrance Disc (Plastic)", 1.30],
+    ["Entrance Disc (Metal)", 1.95], ["Mouse Guard", 3.25],
+    ["Plastic Closers (For Screened Bottoms)", 1.95]
+  ]},
+  { section: "Complete Hives", sub: "10 Frame", items: [
+    ["10 Frame Complete Hive - Plastic Foundation", 295.10],
+    ["10 Frame Complete Hive - Wax Foundation", 306.80]
+  ]},
+  { section: "Complete Hives", sub: "8 Frame", items: [
+    ["8 Frame Complete Hive - Plastic Foundation", 262.08],
+    ["8 Frame Complete Hive - Wax Foundation", 272.48]
+  ]},
+  { section: "Complete Hives", sub: "Starter Hive", items: [
+    ["10 Frame Starter - Plastic Foundation", 106.60], ["10 Frame Starter - Wax Foundation", 111.80],
+    ["8 Frame Starter - Plastic Foundation", 97.89], ["8 Frame Starter - Wax Foundation", 102.57]
+  ]},
+  { section: "Complete Hives", sub: "Additional Hive Components", items: [
+    ["Deep (Loaded)", 54.60], ["Medium (Loaded)", 51.35], ["3 Compartment Queen Castle", 52.00],
+    ["2 Frame Mating Nuc", 26.00], ["Double Nuc Set", 93.60], ["Swarm Trap (Not Loaded)", 57.85],
+    ["Division Board", 6.50], ["8 or 10 Frame Double Screen", 23.40], ["8 or 10 Frame Slatted Rack", 22.10],
+    ["8 or 10 Frame Plastic Queen Excluder", 8.45], ["8 or 10 Frame Metal Queen Excluder", 12.35],
+    ["8 or 10 Frame Wood Bound Queen Excluder", 14.30],
+    ["Insulated Hive Wraps 8/10 Frame 2-Deep", 31.85], ["Insulated Hive Wraps 8/10 Frame 1-Deep Medium", 27.95],
+    ["Insulated Hive Wraps 8/10 Frame 1-Deep", 23.40], ["5 Frame Nuc", 21.84]
+  ]},
+  { section: "Loaded Supers with Frames and Foundation", sub: "Plastic Foundation", items: [
+    ["10 Frame Deep - Plastic", 58.50], ["10 Frame Medium - Plastic", 53.30],
+    ["8 Frame Deep - Plastic", 49.79], ["8 Frame Medium - Plastic", 45.50]
+  ]},
+  { section: "Loaded Supers with Frames and Foundation", sub: "Wax Foundation", items: [
+    ["10 Frame Deep - Wax", 63.70], ["10 Frame Medium - Wax", 57.85],
+    ["10 Frame Shallow - Wax", 52.00], ["8 Frame Deep - Wax", 54.47], ["8 Frame Medium - Wax", 46.02]
+  ]},
+  { section: "Beekeeping Tools and Equipment", sub: "Protective Gear", items: [
+    ["Gloves Ventilated (Bucko)", 13.65], ["Gloves Ventilated (Economy)", 10.40],
+    ["Veils", 26.00], ["Hat/Veil Combo", 24.05], ["Beekeepers Hat", 16.90],
+    ["Ventilated Bee Suit", 97.50], ["Ventilated Bee Jacket", 78.00]
+  ]},
+  { section: "Beekeeping Tools and Equipment", sub: "Hive Tools and Accessories", items: [
+    ["KW Hive Tool", 10.40], ["J-Hook Hive Tool", 10.40], ["Regular Hive Tool", 6.50],
+    ["Bee Brush", 6.50], ["Frame Perch", 15.60], ["Frame Grip", 6.50],
+    ["Frame Cleaning Tool", 5.20], ["Wire Crimper", 5.85], ["Frame Wire 1/2 lb approx. 700ft", 9.10],
+    ["Wire Embedder", 2.60], ["Support Pins 100 Count", 13.00],
+    ["Support Pins 1000 Pack Metal", 119.60], ["Support Pins 1000 Pack Plastic", 119.60],
+    ["Eyelets 100 Pack", 2.60], ["Eyelets 1000 Pack", 14.95], ["Hive Staples 100 Each", 10.40],
+    ["10 Frame to 9 Frame Spacer", 0.98], ["10 Frame to 9 Frame Spacing Tool", 9.10],
+    ["SS Smoker 4x7", 26.00], ["SS Smoker 4x9", 28.60],
+    ["Complete Nicot Kit", 58.50], ["O.A. Vaporizer", 59.80]
+  ]},
+  { section: "Beekeeping Tools and Equipment", sub: "Queen Rearing and Pest Control", items: [
+    ["One Handed Queen Catcher", 11.05], ["Queen Catcher Clip (Plastic)", 2.60],
+    ["Queen Catcher Clip (S Steel)", 4.55], ["Queen Caging Pipe", 5.85],
+    ["Press In Queen Cage", 1.95], ["Queen Marking Pen", 5.85],
+    ["Beetle Barns", 1.30], ["Beetle Blaster", 1.30], ["Beetle Jail", 1.95],
+    ["Aluminum Beetle Tray", 32.50], ["Beehive Entrance Beetle Guard", 10.40]
+  ]}
+];
+
+// Flatten items with stable IDs
+var ALL_ITEMS = [];
+CATALOG.forEach(function(group, gi) {
+  group.items.forEach(function(item, ii) {
+    ALL_ITEMS.push({ id: gi + '_' + ii, name: item[0], price: item[1], section: group.section, sub: group.sub || '' });
+  });
+});
+
+var quantities = {};
+var summaryOpen = false;
+
+function fmt(n) { return '$' + n.toFixed(2); }
+
+function buildCatalog() {
+  var container = document.getElementById('catalog');
+  var lastSection = null;
+  var lastSubKey = null;
+  var listEl = null;
+
+  ALL_ITEMS.forEach(function(item) {
+    var subKey = item.section + '|||' + item.sub;
+
+    if (item.section !== lastSection) {
+      var wrap = document.createElement('div');
+      wrap.className = 'section-wrap';
+      wrap.setAttribute('data-section', item.section);
+
+      var head = document.createElement('div');
+      head.className = 'section-head';
+      head.textContent = item.section;
+      wrap.appendChild(head);
+
+      listEl = document.createElement('div');
+      listEl.className = 'items-list';
+      wrap.appendChild(listEl);
+      container.appendChild(wrap);
+
+      lastSection = item.section;
+      lastSubKey = null;
+    }
+
+    if (item.sub && subKey !== lastSubKey) {
+      var subHead = document.createElement('div');
+      subHead.className = 'sub-head';
+      subHead.setAttribute('data-subkey', subKey);
+      subHead.textContent = item.sub;
+      listEl.appendChild(subHead);
+      lastSubKey = subKey;
+    }
+
+    var row = document.createElement('div');
+    row.className = 'item-row';
+    row.setAttribute('data-id', item.id);
+    row.setAttribute('data-search', item.name.toLowerCase());
+    row.setAttribute('data-subkey', subKey);
+
+    row.innerHTML =
+      '<div class="item-info">' +
+        '<div class="item-name">' + item.name + '</div>' +
+        '<div class="item-price" id="price_' + item.id + '">' + fmt(item.price) + ' each</div>' +
+      '</div>' +
+      '<div class="qty-ctrl">' +
+        '<button class="qty-btn" onclick="change(\'' + item.id + '\',-1)">&#8722;</button>' +
+        '<input class="qty-num" type="number" id="qty_' + item.id + '" value="0" min="0" max="999"' +
+          ' onchange="setQty(\'' + item.id + '\',this.value)" onfocus="this.select()">' +
+        '<button class="qty-btn" onclick="change(\'' + item.id + '\',1)">+</button>' +
+      '</div>';
+
+    listEl.appendChild(row);
+  });
+}
+
+function change(id, delta) {
+  setQty(id, (quantities[id] || 0) + delta);
+}
+
+function setQty(id, raw) {
+  var val = Math.max(0, parseInt(raw) || 0);
+  quantities[id] = val;
+  var input = document.getElementById('qty_' + id);
+  if (input) input.value = val;
+  var row = document.querySelector('.item-row[data-id="' + id + '"]');
+  var priceEl = document.getElementById('price_' + id);
+  var item = null;
+  for (var i = 0; i < ALL_ITEMS.length; i++) { if (ALL_ITEMS[i].id === id) { item = ALL_ITEMS[i]; break; } }
+  if (row && priceEl && item) {
+    if (val > 0) {
+      row.classList.add('has-qty');
+      priceEl.textContent = fmt(item.price) + ' each  |  ' + fmt(item.price * val) + ' total';
+    } else {
+      row.classList.remove('has-qty');
+      priceEl.textContent = fmt(item.price) + ' each';
+    }
+  }
+  updateTotal();
+}
+
+function updateTotal() {
+  var total = 0, itemCount = 0, lines = [];
+  ALL_ITEMS.forEach(function(item) {
+    var qty = quantities[item.id] || 0;
+    if (qty > 0) {
+      var sub = item.price * qty;
+      total += sub;
+      itemCount += qty;
+      lines.push({ name: item.name, qty: qty, sub: sub });
+    }
+  });
+
+  document.getElementById('grand-total').textContent = fmt(total);
+
+  var btn = document.getElementById('summary-btn');
+  if (itemCount > 0) {
+    btn.style.display = 'block';
+    btn.textContent = itemCount + (itemCount === 1 ? ' item' : ' items');
+  } else {
+    btn.style.display = 'none';
+    summaryOpen = false;
+    document.getElementById('summary-panel').classList.remove('open');
+  }
+
+  var linesEl = document.getElementById('summary-lines');
+  linesEl.innerHTML = lines.map(function(l) {
+    return '<div class="summary-line"><span>' + l.qty + 'x ' + l.name + '</span><span>' + fmt(l.sub) + '</span></div>';
+  }).join('');
+  document.getElementById('summary-total-amt').textContent = fmt(total);
+}
+
+function toggleSummary() {
+  summaryOpen = !summaryOpen;
+  document.getElementById('summary-panel').classList.toggle('open', summaryOpen);
+}
+
+function resetAll() {
+  ALL_ITEMS.forEach(function(item) {
+    quantities[item.id] = 0;
+    var input = document.getElementById('qty_' + item.id);
+    if (input) input.value = 0;
+    var row = document.querySelector('.item-row[data-id="' + item.id + '"]');
+    if (row) row.classList.remove('has-qty');
+    var priceEl = document.getElementById('price_' + item.id);
+    if (priceEl) priceEl.textContent = fmt(item.price) + ' each';
+  });
+  summaryOpen = false;
+  document.getElementById('summary-panel').classList.remove('open');
+  updateTotal();
+}
+
+function filterItems(query) {
+  var q = query.toLowerCase().trim();
+
+  document.querySelectorAll('.item-row').forEach(function(row) {
+    var match = !q || row.getAttribute('data-search').indexOf(q) !== -1;
+    row.classList.toggle('hidden', !match);
+  });
+
+  document.querySelectorAll('.sub-head').forEach(function(subHead) {
+    var key = subHead.getAttribute('data-subkey');
+    var rows = document.querySelectorAll('.item-row[data-subkey="' + key + '"]');
+    var hasVisible = false;
+    rows.forEach(function(r) { if (!r.classList.contains('hidden')) hasVisible = true; });
+    subHead.style.display = hasVisible ? '' : 'none';
+  });
+
+  document.querySelectorAll('.section-wrap').forEach(function(wrap) {
+    var hasVisible = wrap.querySelectorAll('.item-row:not(.hidden)').length > 0;
+    wrap.style.display = hasVisible ? '' : 'none';
+  });
+
+  var anyVisible = document.querySelectorAll('.item-row:not(.hidden)').length > 0;
+  document.getElementById('no-results').style.display = (!anyVisible && q) ? 'block' : 'none';
+}
+
+buildCatalog();
+updateTotal();
+</script>
+</body>
+</html>
