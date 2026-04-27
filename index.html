@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Forked Deer Bee Supply — Order Calculator 2026</title>
+<style>
+  :root {
+    --honey: #E8A020; --honey-light: #F5C842; --honey-dark: #B8760A;
+    --comb: #FFF8E7; --dark: #1A1208; --brown: #3D2400; --mid: #6B4C1E;
+    --text: #2C1A00; --muted: #8B6A3A; --border: #D4A843; --white: #FFFDF5;
+    --red: #C0392B; --green: #27AE60;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; background: var(--comb); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  header { background: var(--dark); color: var(--honey-light); padding: 13px 14px 11px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; box-shadow: 0 3px 20px rgba(0,0,0,0.45); }
+  .header-center { text-align: center; flex: 1; }
+  .header-center h1 { font-size: 17px; font-weight: 800; color: var(--honey-light); }
+  .header-center p { font-size: 9px; color: var(--honey); letter-spacing: 2px; text-transform: uppercase; margin-top: 1px; }
+  .admin-toggle { background: var(--mid); color: var(--honey-light); border: none; padding: 6px 11px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .admin-toggle.active { background: var(--honey); color: var(--dark); }
+
+  /* SYNC BAR */
+  .sync-bar { background: var(--dark); color: var(--muted); text-align: center; padding: 4px 10px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .sync-bar.synced .sync-dot { background: var(--green); }
+  .sync-bar.syncing .sync-dot { background: var(--honey); animation: pulse 0.8s infinite; }
+  .sync-bar.error .sync-dot { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* TOTAL BAR */
+  .total-bar { background: var(--honey); padding: 9px 13px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 62px; z-index: 199; box-shadow: 0 2px 10px rgba(0,0,0,0.18); }
+  .total-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--brown); }
+  .total-amount { font-size: 24px; font-weight: 800; color: var(--dark); line-height: 1; }
+  .bar-right { display: flex; gap: 6px; align-items: center; }
+  .summary-btn, .reset-btn { background: var(--dark); color: var(--honey); border: none; padding: 5px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; }
+
+  /* SUMMARY */
+  .summary-panel { background: var(--dark); margin: 10px 10px 0; border-radius: 10px; padding: 14px 15px; display: none; }
+  .summary-panel.open { display: block; }
+  .summary-panel h3 { font-size: 13px; color: var(--honey); border-bottom: 1px solid var(--mid); padding-bottom: 7px; margin-bottom: 8px; font-weight: 700; }
+  .summary-line { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); padding: 3px 0; gap: 8px; }
+  .summary-line span:last-child { flex-shrink: 0; font-weight: 600; }
+  .summary-total { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; color: var(--honey-light); border-top: 1px solid var(--mid); padding-top: 8px; margin-top: 6px; }
+
+  /* SEARCH */
+  .search-wrap { padding: 9px 10px; background: var(--white); border-bottom: 1px solid var(--border); position: sticky; top: 110px; z-index: 198; }
+  .search-wrap input { width: 100%; padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 15px; background: var(--comb); color: var(--text); outline: none; font-family: inherit; }
+  .search-wrap input:focus { border-color: var(--honey-dark); }
+  .search-wrap input::placeholder { color: var(--muted); }
+
+  /* CATALOG */
+  #catalog { padding-bottom: 32px; }
+  .section-wrap { margin: 12px 10px 0; }
+  .section-head { background: var(--brown); color: var(--white); padding: 8px 13px; border-radius: 8px 8px 0 0; font-size: 14px; font-weight: 700; }
+  .items-list { background: var(--white); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; overflow: hidden; }
+  .sub-head { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; padding: 8px 13px 3px; border-bottom: 1px solid rgba(212,168,67,0.2); background: rgba(255,248,231,0.6); }
+
+  /* ITEM ROW */
+  .item-row { display: flex; align-items: center; padding: 9px 12px; border-bottom: 1px solid rgba(212,168,67,0.15); gap: 9px; }
+  .item-row:last-child { border-bottom: none; }
+  .item-row.has-qty { background: rgba(232,160,32,0.08); }
+  .item-row.hidden { display: none; }
+  .item-row.inactive { opacity: 0.38; pointer-events: none; }
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-size: 13px; color: var(--text); line-height: 1.3; }
+  .item-price { font-size: 11px; color: var(--honey-dark); font-weight: 600; margin-top: 1px; }
+  .item-source-display { font-size: 10px; color: var(--muted); margin-top: 1px; display: none; }
+  .item-row.inactive .item-price { color: var(--muted); }
+  .inactive-badge { font-size: 10px; color: var(--red); font-weight: 700; margin-top: 1px; display: none; }
+  .item-row.inactive .inactive-badge { display: block; }
+
+  /* ADMIN extras on item-info */
+  .admin-meta { display: none; margin-top: 3px; }
+  body.admin-mode .admin-meta { display: block; }
+  .base-price-text { font-size: 10px; color: var(--muted); }
+
+  /* QTY */
+  .qty-ctrl { display: flex; align-items: center; background: var(--comb); border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+  .qty-btn { width: 36px; height: 36px; border: none; background: transparent; color: var(--brown); font-size: 22px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; }
+  .qty-btn:active { background: rgba(232,160,32,0.3); }
+  .qty-num { width: 32px; height: 36px; text-align: center; font-size: 14px; font-weight: 600; color: var(--text); border: none; border-left: 1px solid var(--border); border-right: 1px solid var(--border); background: transparent; padding: 0; -moz-appearance: textfield; font-family: inherit; }
+  .qty-num::-webkit-outer-spin-button, .qty-num::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  /* ADMIN CONTROLS */
+  body.admin-mode .qty-ctrl { display: none; }
+  body.admin-mode .item-row.has-qty { background: transparent; }
+  body.admin-mode .item-row.inactive { opacity: 1; pointer-events: auto; }
+  body.admin-mode .item-source-display { display: block; }
+
+  .admin-controls { display: none; flex-direction: column; gap: 5px; flex-shrink: 0; align-items: flex-end; }
+  body.admin-mode .admin-controls { display: flex; }
+
+  .admin-row { display: flex; align-items: center; gap: 6px; }
+  .price-input { width: 72px; height: 32px; border: 1.5px solid var(--border); border-radius: 7px; background: var(--comb); color: var(--text); font-size: 13px; font-weight: 600; text-align: center; font-family: inherit; padding: 0 4px; outline: none; }
+  .price-input:focus { border-color: var(--honey-dark); }
+  .source-input { width: 100px; height: 32px; border: 1.5px solid var(--border); border-radius: 7px; background: var(--comb); color: var(--text); font-size: 12px; text-align: center; font-family: inherit; padding: 0 6px; outline: none; }
+  .source-input:focus { border-color: var(--honey-dark); }
+  .toggle-btn { width: 44px; height: 26px; border-radius: 13px; border: none; cursor: pointer; position: relative; transition: background 0.2s; flex-shrink: 0; }
+  .toggle-btn.on { background: var(--green); }
+  .toggle-btn.off { background: #bbb; }
+  .toggle-btn::after { content: ''; position: absolute; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: white; transition: left 0.2s; }
+  .toggle-btn.on::after { left: 21px; }
+  .toggle-btn.off::after { left: 3px; }
+
+  .admin-banner { background: var(--brown); color: var(--honey-light); text-align: center; padding: 7px 14px; font-size: 11px; font-weight: 600; display: none; }
+  body.admin-mode .admin-banner { display: block; }
+
+  /* AUTH MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; display: flex; align-items: center; justify-content: center; display: none; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--white); border-radius: 14px; padding: 28px 24px; width: 88%; max-width: 340px; text-align: center; box-shadow: 0 8px 40px rgba(0,0,0,0.4); }
+  .modal h2 { font-size: 18px; font-weight: 800; color: var(--dark); margin-bottom: 6px; }
+  .modal p { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+  .modal input { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 16px; font-family: inherit; background: var(--comb); color: var(--text); outline: none; text-align: center; letter-spacing: 3px; margin-bottom: 12px; }
+  .modal input:focus { border-color: var(--honey-dark); }
+  .modal-error { font-size: 12px; color: var(--red); font-weight: 600; margin-bottom: 10px; min-height: 16px; }
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-btn { flex: 1; padding: 11px; border-radius: 8px; border: none; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .modal-btn.primary { background: var(--brown); color: var(--white); }
+  .modal-btn.primary:active { opacity: 0.85; }
+  .modal-btn.secondary { background: var(--comb); color: var(--muted); border: 1.5px solid var(--border); }
+
+  /* LOADING */
+  #loading { position: fixed; inset: 0; background: var(--dark); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; }
+  #loading .bee { font-size: 40px; margin-bottom: 14px; }
+  #loading p { color: var(--honey); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
+
+  .no-results { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; font-style: italic; display: none; }
+  .footer { text-align: center; padding: 10px 12px 28px; font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<!-- Loading screen -->
+<div id="loading">
+  <div class="bee">&#x1F41D;</div>
+  <p>Loading prices...</p>
+</div>
+
+<!-- Auth modal -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal">
+    <h2>&#x1F512; Admin Access</h2>
+    <p>Enter your admin password to continue</p>
+    <input type="password" id="auth-input" placeholder="Password" onkeydown="if(event.key==='Enter')submitAuth()">
+    <div class="modal-error" id="auth-error"></div>
+    <div class="modal-btns">
+      <button class="modal-btn secondary" onclick="closeAuth()">Cancel</button>
+      <button class="modal-btn primary" onclick="submitAuth()">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div style="width:70px"></div>
+  <div class="header-center">
+    <h1>Forked Deer Bee Supply</h1>
+    <p>2026 Order Calculator</p>
+  </div>
+  <button class="admin-toggle" id="admin-toggle-btn" onclick="handleAdminClick()">&#9881; Admin</button>
+</header>
+
+<div class="sync-bar" id="sync-bar">
+  <div class="sync-dot"></div>
+  <span id="sync-text">Loading...</span>
+</div>
+
+<div class="admin-banner">&#9998; Admin Mode &mdash; Edit prices, sources, and availability. Changes sync to all devices.</div>
+
+<div class="total-bar">
+  <div>
+    <div class="total-label">Order Total</div>
+    <div class="total-amount" id="grand-total">$0.00</div>
+  </div>
+  <div class="bar-right">
+    <button class="summary-btn" id="summary-btn" style="display:none" onclick="toggleSummary()">0 items</button>
+    <button class="reset-btn" onclick="resetAll()">Reset</button>
+  </div>
+</div>
+
+<div class="summary-panel" id="summary-panel">
+  <h3>Order Summary</h3>
+  <div id="summary-lines"></div>
+  <div class="summary-total"><span>TOTAL</span><span id="summary-total-amt">$0.00</span></div>
+</div>
+
+<div class="search-wrap">
+  <input type="search" id="search" placeholder="Search items..." oninput="filterItems(this.value)">
+</div>
+
+<div id="catalog"></div>
+<div class="no-results" id="no-results">No items match your search.</div>
+<div class="footer">Forked Deer Bee Supply &middot; 2026 Pricelist</div>
+
+<script>
+var CATALOG = [
+  { section: "Honey Harvesting Tools", sub: null, items: [
+    ["Hony-B-Gone 8oz", 16.50], ["Honey-B-Gone 16oz", 22.00], ["Honey-B-Gone 1 Gal.", 105.00],
+    ["Uncapping Roller", 10.00], ["Uncapping Scratcher", 4.00], ["Cold Uncapping Knife", 10.00],
+    ["Electric Uncapping Knife", 50.00], ["Honey Bucket with Gate", 13.50], ["Honey Gate", 6.00],
+    ["Bucket Perch", 8.50], ["SS Double Sieve Honey Filter", 20.00], ["Fume Board", 12.00], ["Refractometer", 45.00]
+  ]},
+  { section: "Honey Harvesting Tools", sub: "Extractors", items: [
+    ["2-Frame S-Steel Manual", 91.00], ["2-Frame S-Steel", 185.00], ["4-Frame S-Steel Manual", 275.00],
+    ["4-Frame Electric", 430.00], ["8-Frame S-Steel Manual Radial", 375.00], ["8-Frame Electric Radial", 875.00]
+  ]},
+  { section: "Bee Health / Feed", sub: null, items: [
+    ["Pro Health Pint", 20.00], ["Pro Health Gallon", 90.00], ["Pro-Sweet Liquid Feed - per lb", 0.65],
+    ["Pro Winter Patties 10 lb", 25.00], ["Pro Winter Patties 40 lb", 85.00], ["Ultra Bee Patties - 10 lb", 32.00],
+    ["Ultra Bee Pollen Substitute 10 lbs", 37.50], ["Ultra Bee Pollen Substitute 40 lbs", 90.00],
+    ["Para-Moth Wax Moth Control 16oz", 24.00], ["Para-Moth Wax Moth Control 5 lb", 61.00],
+    ["Garstar Small Hive Beetle", 28.50], ["Varroa Easy Check", 18.50], ["Oxalic Acid 16oz", 12.00],
+    ["Lemon Grass Oil 1oz", 5.00], ["Swarm Commander Gel 2oz", 20.50], ["Swarm Commander Spray 2oz", 27.00]
+  ]},
+  { section: "Bee Health / Feed", sub: "Feeders", items: [
+    ["8 or 10 Frame Candy Board", 12.00], ["5 Frame Candy Board", 10.00],
+    ["8 or 10 Frame Top Feeder (Plastic Liner)", 25.00], ["5 Frame Top Feeder (Holds 3 Jars)", 15.00],
+    ["British Hive Top Feeder", 12.00], ["Punched Feeder Caps", 0.50],
+    ["Entrance Feeders", 3.50], ["Frame Feeder (Deep or Medium 1 Gal)", 8.00]
+  ]},
+  { section: "Hive Parts - 10 Frame", sub: "Unassembled / Assembled", items: [
+    ["Deep Super - Unassembled", 13.50], ["Deep Super - Assembled", 16.00],
+    ["Medium Super - Unassembled", 11.00], ["Medium Super - Assembled", 13.50],
+    ["Shallow Super - Unassembled", 10.50], ["Shallow Super - Assembled", 13.00],
+    ["Vented Super 3in - Unassembled", 6.50], ["Vented Super 3in - Assembled", 8.00],
+    ["Telescoping Top", 16.50], ["Migratory Top (No Metal)", 12.00],
+    ["Screen Inner Cover", 7.50], ["Inner Cover", 7.50],
+    ["Bottom Board (Screened or Solid)", 10.50], ["Stand (No Legs)", 10.00],
+    ["Stand (10in Legs)", 18.00], ["Robbing Screen", 12.00]
+  ]},
+  { section: "Hive Parts - 8 Frame", sub: "Unassembled / Assembled", items: [
+    ["Deep Super - Unassembled", 13.00], ["Deep Super - Assembled", 15.50],
+    ["Medium Super - Unassembled", 10.50], ["Medium Super - Assembled", 13.00],
+    ["Vented Super 3in - Unassembled", 6.50], ["Vented Super 3in - Assembled", 8.00],
+    ["Telescoping Top", 16.50], ["Migratory Top (No Metal)", 12.00],
+    ["Inner Cover", 7.50], ["Screen Inner Cover", 7.50],
+    ["Bottom Board (Screened or Solid)", 10.50], ["Stand (No Legs)", 10.00],
+    ["Stand (10in Legs)", 18.00], ["Robbing Screen", 12.00]
+  ]},
+  { section: "Hive Parts - 5 Frame Nuc", sub: "Unassembled / Assembled", items: [
+    ["Deep Nuc - Unassembled", 11.00], ["Deep Nuc - Assembled", 13.50],
+    ["Medium Nuc - Unassembled", 8.50], ["Medium Nuc - Assembled", 11.00],
+    ["Vented Super 3in", 7.00], ["Telescoping Top", 13.50], ["Migratory Top (No Metal)", 10.80],
+    ["Inner Cover", 6.00], ["Screen Inner Cover", 6.00],
+    ["Bottom Board (Screened or Solid)", 9.00], ["Robbing Screen", 10.00]
+  ]},
+  { section: "Frames and Foundations", sub: "Assembled Frames with Foundation", items: [
+    ["Wedge Top Bar Unassembled $1.15 / Assembled", 1.50], ["Grooved Top Bar Unassembled $1.15 / Assembled", 1.50],
+    ["Deep with Wax Foundation", 3.30], ["Medium with Wax Foundation", 2.80],
+    ["Shallow with Wax Foundation", 2.70], ["Deep with Plastic Wax Coated", 2.90],
+    ["Medium with Plastic Wax Coated", 2.75], ["Deep One Piece Plastic Heavy Waxed", 2.30],
+    ["Medium One Piece Plastic Heavy Waxed", 1.75], ["Deep Green Drone Frame", 3.25]
+  ]},
+  { section: "Frames and Foundations", sub: "Foundations", items: [
+    ["25 lb. Boxes Wax Foundation All Sizes", 255.00], ["Deep Wax Foundation", 1.60],
+    ["Medium Wax Foundation", 1.10], ["Shallow Wax Foundation", 1.00],
+    ["Deep Plastic Wax Coated", 1.20], ["Medium Plastic Wax Coated", 1.40],
+    ["Entrance Reducer", 1.00], ["Entrance Disc (Plastic)", 1.00],
+    ["Entrance Disc (Metal)", 1.50], ["Mouse Guard", 2.50],
+    ["Plastic Closers (For Screened Bottoms)", 1.50]
+  ]},
+  { section: "Complete Hives", sub: "10 Frame", items: [
+    ["10 Frame Complete Hive - Plastic Foundation", 227.00],
+    ["10 Frame Complete Hive - Wax Foundation", 236.00]
+  ]},
+  { section: "Complete Hives", sub: "8 Frame", items: [
+    ["8 Frame Complete Hive - Plastic Foundation", 201.60],
+    ["8 Frame Complete Hive - Wax Foundation", 209.60]
+  ]},
+  { section: "Complete Hives", sub: "Starter Hive", items: [
+    ["10 Frame Starter - Plastic Foundation", 82.00], ["10 Frame Starter - Wax Foundation", 86.00],
+    ["8 Frame Starter - Plastic Foundation", 75.30], ["8 Frame Starter - Wax Foundation", 78.90]
+  ]},
+  { section: "Complete Hives", sub: "Additional Hive Components", items: [
+    ["Deep (Loaded)", 42.00], ["Medium (Loaded)", 39.50], ["3 Compartment Queen Castle", 40.00],
+    ["2 Frame Mating Nuc", 20.00], ["Double Nuc Set", 72.00], ["Swarm Trap (Not Loaded)", 44.50],
+    ["Division Board", 5.00], ["8 or 10 Frame Double Screen", 18.00], ["8 or 10 Frame Slatted Rack", 17.00],
+    ["8 or 10 Frame Plastic Queen Excluder", 6.50], ["8 or 10 Frame Metal Queen Excluder", 9.50],
+    ["8 or 10 Frame Wood Bound Queen Excluder", 11.00],
+    ["Insulated Hive Wraps 8/10 Frame 2-Deep", 24.50], ["Insulated Hive Wraps 8/10 Frame 1-Deep Medium", 21.50],
+    ["Insulated Hive Wraps 8/10 Frame 1-Deep", 18.00], ["5 Frame Nuc", 16.80]
+  ]},
+  { section: "Loaded Supers with Frames and Foundation", sub: "Plastic Foundation", items: [
+    ["10 Frame Deep - Plastic", 45.00], ["10 Frame Medium - Plastic", 41.00],
+    ["8 Frame Deep - Plastic", 38.30], ["8 Frame Medium - Plastic", 35.00]
+  ]},
+  { section: "Loaded Supers with Frames and Foundation", sub: "Wax Foundation", items: [
+    ["10 Frame Deep - Wax", 49.00], ["10 Frame Medium - Wax", 44.50],
+    ["10 Frame Shallow - Wax", 40.00], ["8 Frame Deep - Wax", 41.90], ["8 Frame Medium - Wax", 35.40]
+  ]},
+  { section: "Beekeeping Tools and Equipment", sub: "Protective Gear", items: [
+    ["Gloves Ventilated (Bucko)", 10.50], ["Gloves Ventilated (Economy)", 8.00],
+    ["Veils", 20.00], ["Hat/Veil Combo", 18.50], ["Beekeepers Hat", 13.00],
+    ["Ventilated Bee Suit", 75.00], ["Ventilated Bee Jacket", 60.00]
+  ]},
+  { section: "Beekeeping Tools and Equipment", sub: "Hive Tools and Accessories", items: [
+    ["KW Hive Tool", 8.00], ["J-Hook Hive Tool", 8.00], ["Regular Hive Tool", 5.00],
+    ["Bee Brush", 5.00], ["Frame Perch", 12.00], ["Frame Grip", 5.00],
+    ["Frame Cleaning Tool", 4.00], ["Wire Crimper", 4.50], ["Frame Wire 1/2 lb approx. 700ft", 7.00],
+    ["Wire Embedder", 2.00], ["Support Pins 100 Count", 10.00],
+    ["Support Pins 1000 Pack Metal", 92.00], ["Support Pins 1000 Pack Plastic", 92.00],
+    ["Eyelets 100 Pack", 2.00], ["Eyelets 1000 Pack", 11.50], ["Hive Staples 100 Each", 8.00],
+    ["10 Frame to 9 Frame Spacer", 0.75], ["10 Frame to 9 Frame Spacing Tool", 7.00],
+    ["SS Smoker 4x7", 20.00], ["SS Smoker 4x9", 22.00],
+    ["Complete Nicot Kit", 45.00], ["O.A. Vaporizer", 46.00]
+  ]},
+  { section: "Beekeeping Tools and Equipment", sub: "Queen Rearing and Pest Control", items: [
+    ["One Handed Queen Catcher", 8.50], ["Queen Catcher Clip (Plastic)", 2.00],
+    ["Queen Catcher Clip (S Steel)", 3.50], ["Queen Caging Pipe", 4.50],
+    ["Press In Queen Cage", 1.50], ["Queen Marking Pen", 4.50],
+    ["Beetle Barns", 1.00], ["Beetle Blaster", 1.00], ["Beetle Jail", 1.50],
+    ["Aluminum Beetle Tray", 25.00], ["Beehive Entrance Beetle Guard", 8.00]
+  ]}
+];
+
+var MARKUP = 1.30;
+
+// Flatten
+var ALL_ITEMS = [];
+CATALOG.forEach(function(group, gi) {
+  group.items.forEach(function(item, ii) {
+    ALL_ITEMS.push({
+      id: gi + '_' + ii,
+      name: item[0],
+      basePrice: item[1],
+      defaultPrice: Math.round(item[1] * MARKUP * 100) / 100,
+      section: group.section,
+      sub: group.sub || ''
+    });
+  });
+});
+
+// STATE
+var state = { prices: {}, active: {}, sources: {} };
+var quantities = {};
+var summaryOpen = false;
+var adminMode = false;
+var adminAuthed = false;
+var saveTimer = null;
+
+var fmt = function(n) { return '$' + parseFloat(n).toFixed(2); };
+
+function currentPrice(id) {
+  if (state.prices[id] !== undefined) return state.prices[id];
+  var item = ALL_ITEMS.find(function(i) { return i.id === id; });
+  return item ? item.defaultPrice : 0;
+}
+function isActive(id) {
+  return state.active[id] !== undefined ? state.active[id] : true;
+}
+function currentSource(id) {
+  return state.sources[id] !== undefined ? state.sources[id] : 'Midway';
+}
+
+// SYNC STATUS
+function setSyncStatus(status, text) {
+  var bar = document.getElementById('sync-bar');
+  var txt = document.getElementById('sync-text');
+  bar.className = 'sync-bar ' + status;
+  txt.textContent = text;
+}
+
+// LOAD
+async function loadFromServer() {
+  setSyncStatus('syncing', 'Loading prices...');
+  try {
+    var res = await fetch('/.netlify/functions/getprices');
+    if (!res.ok) throw new Error('Server error');
+    var data = await res.json();
+    if (data.prices) state.prices = data.prices;
+    if (data.active) state.active = data.active;
+    if (data.sources) state.sources = data.sources;
+    setSyncStatus('synced', 'Prices synced');
+    document.getElementById('loading').style.display = 'none';
+    buildCatalog();
+    updateTotal();
+  } catch(e) {
+    setSyncStatus('error', 'Could not load — using defaults');
+    document.getElementById('loading').style.display = 'none';
+    buildCatalog();
+    updateTotal();
+  }
+}
+
+// SAVE (debounced)
+function scheduleSave() {
+  setSyncStatus('syncing', 'Saving...');
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToServer, 1500);
+}
+
+async function saveToServer() {
+  try {
+    var res = await fetch('/.netlify/functions/saveprices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state)
+    });
+    if (!res.ok) throw new Error('Save failed');
+    setSyncStatus('synced', 'All changes saved');
+  } catch(e) {
+    setSyncStatus('error', 'Save failed — check connection');
+  }
+}
+
+// BUILD DOM
+function buildCatalog() {
+  var container = document.getElementById('catalog');
+  container.innerHTML = '';
+  var lastSection = null, lastSubKey = null, listEl = null;
+
+  ALL_ITEMS.forEach(function(item) {
+    var subKey = item.section + '|||' + item.sub;
+    var active = isActive(item.id);
+    var price = currentPrice(item.id);
+    var source = currentSource(item.id);
+
+    if (item.section !== lastSection) {
+      var wrap = document.createElement('div');
+      wrap.className = 'section-wrap';
+      wrap.setAttribute('data-section', item.section);
+      var head = document.createElement('div');
+      head.className = 'section-head';
+      head.textContent = item.section;
+      wrap.appendChild(head);
+      listEl = document.createElement('div');
+      listEl.className = 'items-list';
+      wrap.appendChild(listEl);
+      container.appendChild(wrap);
+      lastSection = item.section;
+      lastSubKey = null;
+    }
+
+    if (item.sub && subKey !== lastSubKey) {
+      var subHead = document.createElement('div');
+      subHead.className = 'sub-head';
+      subHead.setAttribute('data-subkey', subKey);
+      subHead.textContent = item.sub;
+      listEl.appendChild(subHead);
+      lastSubKey = subKey;
+    }
+
+    var row = document.createElement('div');
+    row.className = 'item-row' + (active ? '' : ' inactive');
+    row.setAttribute('data-id', item.id);
+    row.setAttribute('data-search', item.name.toLowerCase());
+    row.setAttribute('data-subkey', subKey);
+
+    row.innerHTML =
+      '<div class="item-info">' +
+        '<div class="item-name">' + item.name + '</div>' +
+        '<div class="item-price" id="price_' + item.id + '">' + fmt(price) + ' each</div>' +
+        '<div class="item-source-display" id="srcdisp_' + item.id + '">Source: ' + source + '</div>' +
+        '<div class="inactive-badge">OUT OF STOCK / INACTIVE</div>' +
+        '<div class="admin-meta">' +
+          '<div class="base-price-text">Midway base: ' + fmt(item.basePrice) + ' &bull; Default +30%: ' + fmt(item.defaultPrice) + '</div>' +
+        '</div>' +
+      '</div>' +
+      // Calculator controls
+      '<div class="qty-ctrl">' +
+        '<button class="qty-btn" onclick="change(\'' + item.id + '\',-1)">&#8722;</button>' +
+        '<input class="qty-num" type="number" id="qty_' + item.id + '" value="0" min="0" max="999"' +
+          ' onchange="setQty(\'' + item.id + '\',this.value)" onfocus="this.select()">' +
+        '<button class="qty-btn" onclick="change(\'' + item.id + '\',1)">+</button>' +
+      '</div>' +
+      // Admin controls
+      '<div class="admin-controls">' +
+        '<div class="admin-row">' +
+          '<input class="price-input" type="number" id="pedit_' + item.id + '" value="' + price.toFixed(2) + '"' +
+            ' step="0.01" min="0" onchange="updatePrice(\'' + item.id + '\',this.value)" onfocus="this.select()" title="Price">' +
+          '<button class="toggle-btn ' + (active ? 'on' : 'off') + '" id="tog_' + item.id + '"' +
+            ' onclick="toggleActive(\'' + item.id + '\')" title="Active / Inactive"></button>' +
+        '</div>' +
+        '<div class="admin-row">' +
+          '<input class="source-input" type="text" id="src_' + item.id + '" value="' + source + '"' +
+            ' placeholder="Source" onchange="updateSource(\'' + item.id + '\',this.value)" title="Source">' +
+        '</div>' +
+      '</div>';
+
+    listEl.appendChild(row);
+  });
+}
+
+// CALCULATOR
+function change(id, delta) { setQty(id, (quantities[id] || 0) + delta); }
+
+function setQty(id, raw) {
+  if (!isActive(id)) return;
+  var val = Math.max(0, parseInt(raw) || 0);
+  quantities[id] = val;
+  var input = document.getElementById('qty_' + id);
+  if (input) input.value = val;
+  var row = document.querySelector('.item-row[data-id="' + id + '"]');
+  var priceEl = document.getElementById('price_' + id);
+  var price = currentPrice(id);
+  if (row && priceEl) {
+    if (val > 0) {
+      row.classList.add('has-qty');
+      priceEl.textContent = fmt(price) + ' each  |  ' + fmt(price * val) + ' total';
+    } else {
+      row.classList.remove('has-qty');
+      priceEl.textContent = fmt(price) + ' each';
+    }
+  }
+  updateTotal();
+}
+
+function updateTotal() {
+  var total = 0, itemCount = 0, lines = [];
+  ALL_ITEMS.forEach(function(item) {
+    var qty = quantities[item.id] || 0;
+    if (qty > 0 && isActive(item.id)) {
+      var sub = currentPrice(item.id) * qty;
+      total += sub; itemCount += qty;
+      lines.push({ name: item.name, qty: qty, sub: sub });
+    }
+  });
+  document.getElementById('grand-total').textContent = fmt(total);
+  var btn = document.getElementById('summary-btn');
+  if (itemCount > 0) {
+    btn.style.display = 'block';
+    btn.textContent = itemCount + (itemCount === 1 ? ' item' : ' items');
+  } else {
+    btn.style.display = 'none';
+    summaryOpen = false;
+    document.getElementById('summary-panel').classList.remove('open');
+  }
+  var linesEl = document.getElementById('summary-lines');
+  linesEl.innerHTML = lines.map(function(l) {
+    return '<div class="summary-line"><span>' + l.qty + 'x ' + l.name + '</span><span>' + fmt(l.sub) + '</span></div>';
+  }).join('');
+  document.getElementById('summary-total-amt').textContent = fmt(total);
+}
+
+function toggleSummary() {
+  summaryOpen = !summaryOpen;
+  document.getElementById('summary-panel').classList.toggle('open', summaryOpen);
+}
+
+function resetAll() {
+  ALL_ITEMS.forEach(function(item) {
+    quantities[item.id] = 0;
+    var input = document.getElementById('qty_' + item.id);
+    if (input) input.value = 0;
+    var row = document.querySelector('.item-row[data-id="' + item.id + '"]');
+    if (row) row.classList.remove('has-qty');
+    var priceEl = document.getElementById('price_' + item.id);
+    if (priceEl) priceEl.textContent = fmt(currentPrice(item.id)) + ' each';
+  });
+  summaryOpen = false;
+  document.getElementById('summary-panel').classList.remove('open');
+  updateTotal();
+}
+
+// ADMIN AUTH
+function handleAdminClick() {
+  if (adminMode) {
+    // Turn off admin mode
+    adminMode = false;
+    adminAuthed = false;
+    document.body.classList.remove('admin-mode');
+    var btn = document.getElementById('admin-toggle-btn');
+    btn.textContent = '\u2699 Admin';
+    btn.classList.remove('active');
+  } else if (adminAuthed) {
+    enterAdminMode();
+  } else {
+    // Show password modal
+    document.getElementById('auth-modal').classList.add('open');
+    document.getElementById('auth-input').value = '';
+    document.getElementById('auth-error').textContent = '';
+    setTimeout(function() { document.getElementById('auth-input').focus(); }, 100);
+  }
+}
+
+function closeAuth() {
+  document.getElementById('auth-modal').classList.remove('open');
+}
+
+async function submitAuth() {
+  var pwd = document.getElementById('auth-input').value;
+  var errEl = document.getElementById('auth-error');
+  if (!pwd) { errEl.textContent = 'Please enter a password'; return; }
+  errEl.textContent = 'Checking...';
+  try {
+    var res = await fetch('/.netlify/functions/checkauth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pwd })
+    });
+    var data = await res.json();
+    if (data.valid) {
+      adminAuthed = true;
+      closeAuth();
+      enterAdminMode();
+    } else {
+      errEl.textContent = 'Incorrect password';
+      document.getElementById('auth-input').value = '';
+      document.getElementById('auth-input').focus();
+    }
+  } catch(e) {
+    errEl.textContent = 'Connection error — try again';
+  }
+}
+
+function enterAdminMode() {
+  adminMode = true;
+  document.body.classList.add('admin-mode');
+  var btn = document.getElementById('admin-toggle-btn');
+  btn.textContent = 'Done';
+  btn.classList.add('active');
+}
+
+// ADMIN EDITS
+function updatePrice(id, val) {
+  var price = Math.round(Math.max(0, parseFloat(val) || 0) * 100) / 100;
+  state.prices[id] = price;
+  var input = document.getElementById('pedit_' + id);
+  if (input) input.value = price.toFixed(2);
+  var priceEl = document.getElementById('price_' + id);
+  var qty = quantities[id] || 0;
+  if (priceEl) priceEl.textContent = qty > 0
+    ? fmt(price) + ' each  |  ' + fmt(price * qty) + ' total'
+    : fmt(price) + ' each';
+  scheduleSave();
+  updateTotal();
+}
+
+function toggleActive(id) {
+  state.active[id] = !isActive(id);
+  var row = document.querySelector('.item-row[data-id="' + id + '"]');
+  var btn = document.getElementById('tog_' + id);
+  if (row) row.classList.toggle('inactive', !state.active[id]);
+  if (btn) { btn.classList.toggle('on', state.active[id]); btn.classList.toggle('off', !state.active[id]); }
+  if (!state.active[id]) {
+    quantities[id] = 0;
+    var inp = document.getElementById('qty_' + id);
+    if (inp) inp.value = 0;
+  }
+  scheduleSave();
+  updateTotal();
+}
+
+function updateSource(id, val) {
+  state.sources[id] = val.trim();
+  var dispEl = document.getElementById('srcdisp_' + id);
+  if (dispEl) dispEl.textContent = 'Source: ' + (val.trim() || 'Unknown');
+  scheduleSave();
+}
+
+// SEARCH
+function filterItems(query) {
+  var q = query.toLowerCase().trim();
+  document.querySelectorAll('.item-row').forEach(function(row) {
+    var match = !q || row.getAttribute('data-search').indexOf(q) !== -1;
+    row.classList.toggle('hidden', !match);
+  });
+  document.querySelectorAll('.sub-head').forEach(function(subHead) {
+    var key = subHead.getAttribute('data-subkey');
+    var rows = document.querySelectorAll('.item-row[data-subkey="' + key + '"]');
+    var hasVisible = false;
+    rows.forEach(function(r) { if (!r.classList.contains('hidden')) hasVisible = true; });
+    subHead.style.display = hasVisible ? '' : 'none';
+  });
+  document.querySelectorAll('.section-wrap').forEach(function(wrap) {
+    var hasVisible = wrap.querySelectorAll('.item-row:not(.hidden)').length > 0;
+    wrap.style.display = hasVisible ? '' : 'none';
+  });
+  var anyVisible = document.querySelectorAll('.item-row:not(.hidden)').length > 0;
+  document.getElementById('no-results').style.display = (!anyVisible && q) ? 'block' : 'none';
+}
+
+// INIT
+loadFromServer();
+</script>
+</body>
+</html>
